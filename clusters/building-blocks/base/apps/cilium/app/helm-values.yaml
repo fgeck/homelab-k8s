@@ -1,0 +1,79 @@
+---
+# Talos-specific Cilium values.
+# Key changes from k3s:
+#  - k8sServicePort: 7445  (KubePrism, not raw apiserver)
+#  - loadBalancer.mode: hybrid  (DSR for TCP, SNAT for UDP — safe on home LAN)
+#  - ipv4NativeRoutingCIDR matches Talos podSubnet (10.42.0.0/16)
+#  - bpf.hostLegacyRouting: true  (required on Talos until kernel 5.18+)
+#  - cgroup.automount.enabled: false + hostRoot  (Talos manages cgroupv2 itself)
+#  - envoy/l7Proxy disabled — not needed; Envoy Gateway will handle ingress instead
+
+k8sServiceHost: 127.0.0.1
+k8sServicePort: 7445        # KubePrism port (set in Talos machineconfig)
+
+kubeProxyReplacement: true
+l2announcements:
+  enabled: true
+externalIPs:
+  enabled: true
+nodeIPAM:
+  enabled: true
+
+k8sClientRateLimit:
+  qps: 50
+  burst: 200
+
+operator:
+  replicas: 2               # One per worker node (k8s-01, k8s-02)
+  rollOutPods: true
+rollOutCiliumPods: true
+
+routingMode: native
+ipam:
+  mode: kubernetes
+ipv4NativeRoutingCIDR: "10.42.0.0/16"
+
+autoDirectNodeRoutes: true
+
+loadBalancer:
+  algorithm: maglev
+  mode: hybrid              # DSR for TCP (low latency), SNAT for UDP (safe)
+
+localRedirectPolicy: true
+
+# Required on Talos: kernel routing table is managed by Talos, not cilium
+bpf:
+  masquerade: true
+  hostLegacyRouting: true   # Ref: https://github.com/siderolabs/talos/issues/10002
+
+# Required on Talos: cgroupv2 is mounted by Talos at a fixed path
+cgroup:
+  automount:
+    enabled: false
+  hostRoot: /sys/fs/cgroup
+
+socketLB:
+  hostNamespaceOnly: true
+
+envoy:
+  enabled: false
+l7Proxy: false
+
+securityContext:
+  capabilities:
+    ciliumAgent:
+      - CHOWN
+      - KILL
+      - NET_ADMIN
+      - NET_RAW
+      - IPC_LOCK
+      - SYS_ADMIN
+      - SYS_RESOURCE
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    cleanCiliumState:
+      - NET_ADMIN
+      - SYS_ADMIN
+      - SYS_RESOURCE

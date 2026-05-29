@@ -1,0 +1,39 @@
+---
+# Non-sensitive templating values for minijinja-cli.
+# Sensitive values (IPs, tokens, certs) live in talos/secrets.sops.yaml (SOPS-encrypted, gitignored).
+
+cluster:
+  name: main
+  dnsDomain: cluster.local
+  podSubnet: 10.42.0.0/16
+  serviceSubnet: 10.43.0.0/16
+  kubePrismPort: 7445
+
+nodes:
+  nas:
+    hostname: nas
+    installDisk: /dev/sda
+    controlplane: true
+    allowScheduling: false
+  k8s-01:
+    hostname: k8s-01
+    installDisk: /dev/sda
+    controlplane: true
+    allowScheduling: true
+  k8s-02:
+    hostname: k8s-02
+    installDisk: /dev/sda
+    controlplane: true
+    allowScheduling: true
+
+ntp:
+  servers:
+    - time.cloudflare.com
+    - pool.ntp.org
+    - time.google.com
+
+# Schematic ID is resolved at build time via image factory.
+# Run: just talos-schematic-id  →  paste result here before generating configs.
+schematicId: "5660ef302b89b35b9add72b21aef74a71e562851ce170568d82cc21aa2c02daf"
+talosVersion: v1.13.2
+kubernetesVersion: v1.36.1

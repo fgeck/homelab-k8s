@@ -1,0 +1,38 @@
+---
+# k8s-02 — controlplane + worker, Intel iGPU for Jellyfin transcoding.
+apiVersion: v1alpha1
+kind: HostnameConfig
+hostname: k8s-02
+---
+version: v1alpha1
+machine:
+  type: controlplane
+  install:
+    disk: {{ nodes['k8s-02'].installDisk }}
+  network:
+    interfaces:
+      - interface: ens18
+        addresses:
+          - {{ data.nodes['k8s-02'].ip }}/{{ data.network.nodePrefix }}
+        routes:
+          - network: 0.0.0.0/0
+            gateway: {{ data.network.gateway }}
+            metric: 1024
+        vip:
+          ip: {{ data.network.vip }}
+  nodeLabels:
+    node-role: worker
+    intel.feature.node.kubernetes.io/gpu: "true"
+  # Longhorn requires /var/mnt/longhorn to be bind-mounted into kubelet's view.
+  # The disk ({{ nodes['k8s-02'].dataDisk }}) is managed entirely by Longhorn.
+  kubelet:
+    extraMounts:
+      - destination: /var/mnt/longhorn
+        type: bind
+        source: /var/mnt/longhorn
+        options:
+          - bind
+          - rshared
+          - rw
+cluster:
+  allowSchedulingOnControlPlanes: true

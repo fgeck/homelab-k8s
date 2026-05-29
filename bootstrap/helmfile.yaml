@@ -1,0 +1,31 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/helmfile
+
+helmDefaults:
+  cleanupOnFail: true
+  wait: true
+  waitForJobs: true
+  timeout: 300
+
+repositories:
+  - name: cilium
+    url: https://helm.cilium.io
+  - name: coredns
+    url: https://coredns.github.io/helm
+
+releases:
+  - name: cilium
+    namespace: kube-system
+    chart: cilium/cilium
+    version: 1.19.4
+    values:
+      - ../clusters/building-blocks/base/apps/cilium/app/helm-values.yaml
+
+  - name: coredns
+    namespace: kube-system
+    chart: coredns/coredns
+    version: 1.45.2
+    values:
+      - ../clusters/building-blocks/base/apps/coredns/app/helm-values.yaml
+    needs:
+      - kube-system/cilium

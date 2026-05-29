@@ -1,0 +1,26 @@
+---
+# NAS node patch — quorum-only controlplane, no workload scheduling.
+apiVersion: v1alpha1
+kind: HostnameConfig
+hostname: nas
+---
+version: v1alpha1
+machine:
+  type: controlplane
+  install:
+    disk: {{ nodes.nas.installDisk }}
+  network:
+    interfaces:
+      - interface: ens18
+        addresses:
+          - {{ data.nodes.nas.ip }}/{{ data.network.nodePrefix }}
+        routes:
+          - network: 0.0.0.0/0
+            gateway: {{ data.network.gateway }}
+            metric: 1024
+        vip:
+          ip: {{ data.network.vip }}
+  nodeLabels:
+    node-role: quorum
+  nodeTaints:
+    node-role.kubernetes.io/quorum: "quorum:NoSchedule"

@@ -1,0 +1,24 @@
+---
+# Talos image schematic — same for all 3 nodes (same CPU generation).
+# Submit to https://factory.talos.dev to get a schematic ID.
+# Then run: just talos-schematic-id
+customization:
+  extraKernelArgs:
+    - -init_on_alloc           # faster allocation (less security)
+    - -selinux                 # disabled
+    - apparmor=0
+    - init_on_alloc=0
+    - init_on_free=0
+    - intel_iommu=on           # required for Proxmox PCI passthrough
+    - iommu=pt
+    - mitigations=off          # homelab performance trade-off
+    - security=none
+    - talos.auditd.disabled=1
+  systemExtensions:
+    officialExtensions:
+      - siderolabs/i915          # Intel iGPU (Jellyfin transcoding)
+      - siderolabs/intel-ucode   # Intel microcode updates
+      - siderolabs/iscsi-tools   # Required for Longhorn (iscsid + iscsiadm)
+      - siderolabs/mei           # Intel Management Engine Interface (iGPU dependency)
+      - siderolabs/nfsrahead     # NFS read-ahead performance (TrueNAS mounts)
+      - siderolabs/util-linux-tools  # Required for Longhorn (fstrim)

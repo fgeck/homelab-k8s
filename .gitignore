@@ -1,0 +1,8 @@
+talos/_out/
+talos/talos-secrets.sops.yaml
+talos/network.yaml
+secrets/
+*.kubeconfig
+*kubeconfig*
+.env
+config.yaml

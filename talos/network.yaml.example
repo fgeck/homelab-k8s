@@ -1,0 +1,17 @@
+# Network configuration for the Talos cluster.
+# This file is gitignored — it contains private IP addresses.
+# Populate once before running: just talos gen-secrets
+
+network:
+  vip: ""           # Virtual IP shared by all controlplane nodes (e.g. 192.168.1.20)
+  gateway: ""       # Default gateway (e.g. 192.168.1.1)
+  nodeSubnet: ""    # CIDR covering all node IPs (e.g. 192.168.1.0/24)
+  nodePrefix: ""    # Prefix length only (e.g. 24) — must match nodeSubnet
+
+nodes:
+  nas:
+    ip: ""          # IP of the NAS/quorum node
+  k8s-01:
+    ip: ""          # IP of worker node k8s-01
+  k8s-02:
+    ip: ""          # IP of worker node k8s-02
