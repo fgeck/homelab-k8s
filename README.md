@@ -6,6 +6,14 @@ Kubernetes homelab running [Talos Linux](https://www.talos.dev/) on Proxmox, man
 
 See [SETUP.md](SETUP.md) for the full cluster setup guide.
 
+## Architecture
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the target homelab design, infrastructure layout, storage model, and failure assumptions.
+
+## Backup / Recovery
+
+See [BACKUP-RECOVERY.md](BACKUP-RECOVERY.md) for the backup strategy, retention goals, and restore order.
+
 ```bash
 just setup   # quick-reference checklist
 just --list  # all available commands
@@ -88,4 +96,3 @@ it will fall back to IPv4 and succeed — just takes longer. Monitor with:
 **`interface: eth0` config ignored**
 Proxmox VMs expose the NIC as `ens18`. Verify with `just debug links <node>` and
 update the patch if the name differs.
-

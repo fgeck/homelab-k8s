@@ -1,16 +1,22 @@
 # homelab-k8s — Full Setup Guide
 
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the target platform design and [BACKUP-RECOVERY.md](BACKUP-RECOVERY.md) for backup and restore policy.
+
 ## Prerequisites
 
 ### Hardware
 
 | Node   | Role                  | Disks                              |
 |--------|-----------------------|------------------------------------|
-| nas    | Controlplane (quorum) | `/dev/sda` — 32 GB+ system         |
-| k8s-01 | Controlplane + worker | `/dev/sda` — 32 GB+ system, `/dev/sdb` — 200 GB+ data |
-| k8s-02 | Controlplane + worker | `/dev/sda` — 32 GB+ system, `/dev/sdb` — 200 GB+ data |
+| nas    | Controlplane (quorum) | `/dev/sda` — 16 GB+ system         |
+| k8s-01 | Controlplane + worker | `/dev/sda` — 16 GB+ system, `/dev/sdb` — 200 GB+ OpenEBS data |
+| k8s-02 | Controlplane + worker | `/dev/sda` — 16 GB+ system, `/dev/sdb` — 200 GB+ OpenEBS data |
 
-All three VMs run Talos as controlplane nodes. `nas` only provides etcd quorum — no workloads are scheduled there. `k8s-01` and `k8s-02` run all workloads and use `/dev/sdb` for persistent storage via local-path-provisioner.
+All three VMs run Talos as controlplane nodes. `nas` only provides etcd quorum — no workloads are scheduled there. `k8s-01` and `k8s-02` run all workloads. Target storage layout is OpenEBS LocalPV hostpath on a dedicated worker data disk, exposed through the default storage class `openebs-hostpath`.
+
+Talos itself does not need a large root disk in this layout. `16 GB` is a practical minimum for Talos, kubelet, container images, and upgrades when persistent app data lives on `/dev/sdb`.
+
+This repo now wires worker storage through Talos `UserVolumeConfig`. Each worker provisions an `openebs-local` volume on `/dev/sdb`, which Talos mounts at `/var/mnt/openebs-local`. OpenEBS hostpath uses that mount directly.
 
 ### Required tools
 
@@ -56,9 +62,9 @@ Download the ISO URL printed and upload it to Proxmox local storage.
 
 Create 3 VMs in Proxmox:
 
-- **nas**: 1 disk (`/dev/sda`, 32 GB+), boot from ISO
-- **k8s-01**: 2 disks (`/dev/sda` 32 GB+, `/dev/sdb` 200 GB+), boot from ISO
-- **k8s-02**: 2 disks (`/dev/sda` 32 GB+, `/dev/sdb` 200 GB+), boot from ISO
+- **nas**: 1 disk (`/dev/sda`, 16 GB+), boot from ISO
+- **k8s-01**: 2 disks (`/dev/sda` 16 GB+, `/dev/sdb` 200 GB+), boot from ISO
+- **k8s-02**: 2 disks (`/dev/sda` 16 GB+, `/dev/sdb` 200 GB+), boot from ISO
 
 Boot each VM from the ISO. Wait until the Proxmox console shows **"maintenance"** — this means Talos is running in maintenance mode and is ready to receive a machine config.
 
@@ -203,87 +209,22 @@ All nodes should now be `Ready`. Cilium and CoreDNS pods should be running in `k
 KUBECONFIG=secrets/kubeconfig flux get kustomizations -A --watch
 ```
 
-Flux reconciles the repo and deploys all remaining workloads. Cilium L2 announcement, local-path-provisioner, cert-manager, and your apps will come up in dependency order.
+Flux reconciles the repo and deploys all remaining workloads. Cilium L2 announcement, OpenEBS, cert-manager, and your apps will come up in dependency order.
 
 ---
 
-## Adding VolSync replication to an app
+## Backup assumptions for stateful workloads
 
-VolSync is deployed cluster-wide by Flux (`clusters/building-blocks/base/apps/volsync/`). To add PVC replication for a specific app, add three things alongside that app's other manifests.
+Stateful apps should assume node-local PVC loss is possible. Backup and restore design should follow [BACKUP-RECOVERY.md](BACKUP-RECOVERY.md):
 
-### 1. Generate a TLS pre-shared key
+- Use VolSync with Restic for PVC backups.
+- Use TrueNAS over NFS as backup target.
+- Restic does not require a dedicated server in this design; it writes to a repository stored on a TrueNAS NFS dataset.
+- Use application-native backups for databases in addition to PVC backups where applicable.
+- Define backup cadence, retention, and restore procedure per app.
+- Treat stateless workloads as GitOps rebuilds, not backup restores.
 
-```bash
-echo "volsync:$(openssl rand -hex 32)" > /tmp/psk.txt
-kubectl create secret generic volsync-tls-key \
-  --namespace <app-namespace> \
-  --from-file=psk.txt=/tmp/psk.txt \
-  --dry-run=client -o yaml | sops --encrypt --input-type=yaml --output-type=yaml /dev/stdin \
-  > clusters/.../apps/<app>/app/volsync-tls-key.sops.yaml
-rm /tmp/psk.txt
-```
-
-Commit the encrypted secret. Both `ReplicationSource` and `ReplicationDestination` reference the same secret.
-
-### 2. ReplicationDestination (receives data, runs on k8s-02)
-
-```yaml
-apiVersion: volsync.backube/v1alpha1
-kind: ReplicationDestination
-metadata:
-  name: <app>-dst
-  namespace: <app-namespace>
-spec:
-  trigger:
-    manual: first-sync        # change to force a manual resync
-  rsyncTLS:
-    keySecret: volsync-tls-key
-    copyMethod: Direct        # no VolumeSnapshot needed
-    capacity: 5Gi
-    accessModes: [ReadWriteOnce]
-    storageClassName: local-path
-    # Pin to k8s-02 so the replica PVC lives on the second worker
-    moverServiceAccount: volsync-privileged
-    affinity:
-      nodeAffinity:
-        requiredDuringSchedulingIgnoredDuringExecution:
-          nodeSelectorTerms:
-            - matchExpressions:
-                - key: kubernetes.io/hostname
-                  operator: In
-                  values: [k8s-02]
-```
-
-After the destination is created, read the address Flux assigned:
-```bash
-kubectl get replicationdestination <app>-dst -n <app-namespace> \
-  -o jsonpath='{.status.rsyncTLS.address}'
-```
-
-### 3. ReplicationSource (reads live PVC, runs on k8s-01)
-
-```yaml
-apiVersion: volsync.backube/v1alpha1
-kind: ReplicationSource
-metadata:
-  name: <app>-src
-  namespace: <app-namespace>
-spec:
-  sourcePVC: <app-pvc-name>
-  trigger:
-    schedule: "0 * * * *"    # hourly; adjust per-app
-  rsyncTLS:
-    keySecret: volsync-tls-key
-    address: <address-from-destination-status>
-    copyMethod: Direct
-```
-
-### Notes
-
-- `copyMethod: Direct` works with local-path-provisioner (no CSI snapshots required). The source PVC must not be in use by a running pod during sync — schedule syncs during low-traffic windows or use a pre/post hook to scale down the app.
-- The destination PVC name is auto-generated. Use `kubectl get replicationdestination <app>-dst -o jsonpath='{.status.latestMoverStatus}'` to find it.
-- Both resources must reference the **same** `keySecret` content — copy the encrypted secret to both namespaces if source and destination are in different namespaces.
-- To force an immediate resync, patch the `manual` trigger field with a new unique string.
+Implementation details for VolSync resources are intentionally left generic here until the corresponding manifests are added to the repository.
 
 ---
 
