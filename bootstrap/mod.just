@@ -21,7 +21,7 @@ check-nodes:
     for node in nas k8s-01 k8s-02; do
         ip=$(just talos _ip "$node")
         if out=$(talosctl --talosconfig="{{talosconfig}}" -n "$ip" version --short 2>&1); then
-            stage=$(talosctl --talosconfig="{{talosconfig}}" -n "$ip" get machinestage -o yaml 2>/dev/null | yq '.spec' || echo "unknown")
+            stage=$(talosctl --talosconfig="{{talosconfig}}" -n "$ip" get machinestatus -o yaml 2>/dev/null | yq '.spec.stage' || echo "unknown")
             echo "OK   $node ($ip) — stage: $stage"
         else
             echo "FAIL $node ($ip) — $out" >&2; rc=1

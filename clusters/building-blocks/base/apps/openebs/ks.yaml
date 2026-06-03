@@ -3,20 +3,18 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: &app longhorn
+  name: &app openebs
   namespace: flux-system
 spec:
-  targetNamespace: longhorn-system
+  targetNamespace: openebs
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  dependsOn:
-    - name: cilium-app
-  path: ./clusters/building-blocks/base/apps/longhorn/app
-  prune: true
+  path: ./clusters/building-blocks/base/apps/openebs/app
+  prune: false
   sourceRef:
     kind: GitRepository
     name: flux-system
   wait: true
   interval: 30m
-  timeout: 10m
+  timeout: 5m

@@ -1,8 +1,9 @@
 set quiet := true
 set shell := ['bash', '-euo', 'pipefail', '-c']
 
-talosconfig := source_directory() + '/../secrets/talosconfig'
-kubeconfig  := source_directory() + '/../secrets/kubeconfig'
+talosconfig      := source_directory() + '/../secrets/talosconfig'
+kubeconfig       := source_directory() + '/../secrets/kubeconfig'
+test_storage_dir := source_directory() + '/test-storage'
 
 [private]
 default:
@@ -93,3 +94,30 @@ pods:
 # Describe a node. Usage: just debug describe-node nas
 describe-node node:
     KUBECONFIG={{kubeconfig}} kubectl describe node "{{node}}"
+
+# ─── STORAGE ─────────────────────────────────────────────────────────────────
+
+# Test PV/PVC provisioning: creates a PVC + pod, writes a file, reads it back, then cleans up
+test-storage:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ns="debug-storage-$$"
+    trap 'echo "Cleaning up..."; KUBECONFIG={{kubeconfig}} kubectl delete namespace "$ns" --ignore-not-found --wait=false' EXIT
+
+    KUBECONFIG={{kubeconfig}} kubectl create namespace "$ns"
+    KUBECONFIG={{kubeconfig}} kubectl apply -n "$ns" -f "{{test_storage_dir}}/pvc.yaml"
+    KUBECONFIG={{kubeconfig}} kubectl apply -n "$ns" -f "{{test_storage_dir}}/pod.yaml"
+
+    echo "Waiting for PVC to bind..."
+    KUBECONFIG={{kubeconfig}} kubectl wait -n "$ns" pvc/test-pvc \
+        --for=jsonpath='{.status.phase}'=Bound --timeout=60s
+
+    echo "Waiting for pod to complete..."
+    KUBECONFIG={{kubeconfig}} kubectl wait -n "$ns" pod/test-pod \
+        --for=condition=Ready=false --timeout=60s || true
+    KUBECONFIG={{kubeconfig}} kubectl wait -n "$ns" pod/test-pod \
+        --for=jsonpath='{.status.phase}'=Succeeded --timeout=60s
+
+    echo "Pod output:"
+    KUBECONFIG={{kubeconfig}} kubectl logs -n "$ns" test-pod
+    echo "PV/PVC provisioning: OK"

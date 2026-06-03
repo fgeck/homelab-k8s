@@ -5,4 +5,4 @@ kind: Kustomization
 resources:
   - cilium.yaml
   - coredns.yaml
-  - longhorn.yaml
+  - openebs.yaml

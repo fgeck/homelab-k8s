@@ -62,6 +62,14 @@ machine:
     nodeIP:
       validSubnets:
         - {{ data.network.nodeSubnet }}
+    extraMounts:
+      - destination: /var/openebs/local
+        type: bind
+        source: /var/openebs/local
+        options:
+          - bind
+          - rshared
+          - rw
   time:
     servers:
 {% for server in ntp.servers %}
@@ -149,20 +157,4 @@ cluster:
     image: registry.k8s.io/kube-scheduler:{{ kubernetesVersion }}
     extraArgs:
       bind-address: 0.0.0.0
-    config:
-      apiVersion: kubescheduler.config.k8s.io/v1
-      kind: KubeSchedulerConfiguration
-      profiles:
-        - schedulerName: default-scheduler
-          plugins:
-            score:
-              disabled:
-                - name: ImageLocality
-          pluginConfig:
-            - name: PodTopologySpread
-              args:
-                defaultingType: List
-                defaultConstraints:
-                  - maxSkew: 1
-                    topologyKey: kubernetes.io/hostname
-                    whenUnsatisfiable: ScheduleAnyway
+    

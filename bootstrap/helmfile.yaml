@@ -12,6 +12,8 @@ repositories:
     url: https://helm.cilium.io
   - name: coredns
     url: https://coredns.github.io/helm
+  - name: openebs
+    url: https://openebs.github.io/openebs
 
 releases:
   - name: cilium
@@ -20,7 +22,6 @@ releases:
     version: 1.19.4
     values:
       - ../clusters/building-blocks/base/apps/cilium/app/helm-values.yaml
-
   - name: coredns
     namespace: kube-system
     chart: coredns/coredns
@@ -29,3 +30,12 @@ releases:
       - ../clusters/building-blocks/base/apps/coredns/app/helm-values.yaml
     needs:
       - kube-system/cilium
+  - name: openebs
+    namespace: openebs
+    chart: openebs/openebs
+    version: "4.4.0"
+    values:
+      - ../clusters/building-blocks/base/apps/openebs/app/helm-values.yaml
+    needs:
+      - kube-system/cilium
+      - kube-system/coredns
