@@ -97,6 +97,24 @@ describe-node node:
 
 # ─── STORAGE ─────────────────────────────────────────────────────────────────
 
+# Show Talos mount status for a node. Usage: just debug mounts k8s-01
+mounts node:
+    #!/usr/bin/env bash
+    ip=$(just talos _ip "{{node}}")
+    talosctl --talosconfig="{{talosconfig}}" get mountstatus --nodes "$ip" --endpoints "$ip"
+
+# Show Talos volume status for a node. Usage: just debug volumes k8s-01
+volumes node:
+    #!/usr/bin/env bash
+    ip=$(just talos _ip "{{node}}")
+    talosctl --talosconfig="{{talosconfig}}" get volumestatus --nodes "$ip" --endpoints "$ip"
+
+# Show discovered volumes for a node. Usage: just debug discovered-volumes k8s-01
+discovered-volumes node:
+    #!/usr/bin/env bash
+    ip=$(just talos _ip "{{node}}")
+    talosctl --talosconfig="{{talosconfig}}" get discoveredvolumes --nodes "$ip" --endpoints "$ip"
+
 # Test PV/PVC provisioning: creates a PVC + pod, writes a file, reads it back, then cleans up
 test-storage:
     #!/usr/bin/env bash

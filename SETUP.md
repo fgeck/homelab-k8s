@@ -242,5 +242,7 @@ Implementation details for VolSync resources are intentionally left generic here
 | Re-render and apply config to a node | `just talos apply-node k8s-01 192.168.1.22` |
 | Reset a node (destructive) | `just talos reset-node nas` |
 | Defragment etcd | `just talos etcd-defrag` |
+| Check Talos mounts on a worker | `just debug mounts k8s-01` |
+| Check Talos volume status on a worker | `just debug volumes k8s-01` |
 | Decrypt secrets file | `just sops cat talos/talos-secrets.sops.yaml` |
 | Edit secrets file | `just sops edit talos/talos-secrets.sops.yaml` |

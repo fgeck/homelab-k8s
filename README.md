@@ -48,6 +48,9 @@ just debug dmesg nas             # Talos system log (last entries)
 just debug dmesg-follow nas      # stream Talos system log live
 just debug logs nas etcd         # logs for a specific service
 just debug logs-follow k8s-01 kubelet
+just debug mounts k8s-01          # Talos mount status on node
+just debug volumes k8s-01         # Talos volume status on node
+just debug discovered-volumes k8s-01
 ```
 
 ### etcd
