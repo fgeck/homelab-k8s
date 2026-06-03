@@ -28,27 +28,26 @@ _secrets:
 [private]
 _ip node:
     #!/usr/bin/env bash
-    case "{{node}}" in
-        nas)    just talos _secrets | yq '.data.nodes.nas.ip' ;;
-        k8s-01) just talos _secrets | yq '.data.nodes["k8s-01"].ip' ;;
-        k8s-02) just talos _secrets | yq '.data.nodes["k8s-02"].ip' ;;
-        vip)    just talos _secrets | yq '.data.network.vip' ;;
-        *) echo "Unknown node: {{node}}" >&2; exit 1 ;;
-    esac
+    tmp=$(mktemp); trap "rm -f '$tmp'" EXIT
+    just talos _secrets > "$tmp"
+    minijinja-cli --format=yaml --no-newline --strict \
+        "{{talos_dir}}/templates/node-ip.txt.j2" "$tmp" \
+        -D node="{{node}}"
 
 # ─── SCHEMATIC ───────────────────────────────────────────────────────────────
 
 # Submit schematic.yaml to the image factory and print the schematic ID
 schematic-id:
-    curl -sX POST --data-binary @{{talos_dir}}/schematic.yaml https://factory.talos.dev/schematics | yq '.id'
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tmp=$(mktemp); trap "rm -f '$tmp'" EXIT
+    curl -sX POST --data-binary @{{talos_dir}}/schematic.yaml https://factory.talos.dev/schematics > "$tmp"
+    minijinja-cli --format=json --no-newline --strict \
+        "{{talos_dir}}/templates/schematic-id.txt.j2" "$tmp"
 
 # Print ISO and installer URLs for the current schematic + version
 installer-url:
-    #!/usr/bin/env bash
-    id=$(yq '.schematicId' "{{values}}")
-    ver=$(yq '.talosVersion' "{{values}}")
-    echo "ISO:       https://factory.talos.dev/image/$id/$ver/metal-amd64.iso"
-    echo "Installer: factory.talos.dev/installer/$id:$ver"
+    minijinja-cli --strict "{{talos_dir}}/templates/installer-urls.txt.j2" "{{values}}"
 
 # ─── SECRETS ─────────────────────────────────────────────────────────────────
 
@@ -68,27 +67,9 @@ gen-secrets:
     raw=$(mktemp); trap "rm -f '$raw'" EXIT
     talosctl gen secrets --force -o "$raw"
 
-    VIP=$(yq '.network.vip'           "{{talos_dir}}/network.yaml")
-    GW=$(yq '.network.gateway'        "{{talos_dir}}/network.yaml")
-    SUBNET=$(yq '.network.nodeSubnet' "{{talos_dir}}/network.yaml")
-    PREFIX=$(yq '.network.nodePrefix' "{{talos_dir}}/network.yaml")
-    NAS=$(yq '.nodes.nas.ip'          "{{talos_dir}}/network.yaml")
-    K8S01=$(yq '.nodes["k8s-01"].ip'  "{{talos_dir}}/network.yaml")
-    K8S02=$(yq '.nodes["k8s-02"].ip'  "{{talos_dir}}/network.yaml")
-
-    yq "{
-      \"data\": {
-        \"machine\":        {\"ca\": {\"crt\": .certs.os.crt, \"key\": .certs.os.key}, \"token\": .trustdinfo.token},
-        \"cluster\":        {\"id\": .cluster.id, \"secret\": .cluster.secret, \"token\": .secrets.bootstraptoken,
-                             \"ca\": {\"crt\": .certs.k8s.crt, \"key\": .certs.k8s.key},
-                             \"aggregatorCA\": {\"crt\": .certs.k8saggregator.crt, \"key\": .certs.k8saggregator.key},
-                             \"etcd\": {\"ca\": {\"crt\": .certs.etcd.crt, \"key\": .certs.etcd.key}}},
-        \"secrets\":        {\"secretboxencryptionsecret\": .secrets.secretboxencryptionsecret},
-        \"serviceAccount\": {\"key\": .certs.k8sserviceaccount.key},
-        \"network\":        {\"vip\": \"$VIP\", \"gateway\": \"$GW\", \"nodeSubnet\": \"$SUBNET\", \"nodePrefix\": \"$PREFIX\"},
-        \"nodes\":          {\"nas\": {\"ip\": \"$NAS\"}, \"k8s-01\": {\"ip\": \"$K8S01\"}, \"k8s-02\": {\"ip\": \"$K8S02\"}}
-      }
-    }" "$raw" > "{{secrets}}"
+    minijinja-cli --format=yaml --trim-blocks --lstrip-blocks --autoescape=none --strict \
+        "{{talos_dir}}/templates/secrets-wrapper.yaml.j2" "$raw" "{{talos_dir}}/network.yaml" \
+        -o "{{secrets}}"
 
     SOPS_AGE_KEY_FILE={{age_key}} sops --encrypt --in-place "{{secrets}}"
     gum style --foreground 212 "Secrets written and encrypted → talos/talos-secrets.sops.yaml"
@@ -132,36 +113,22 @@ gen-talosconfig:
     tmp=$(mktemp -d); trap "rm -rf '$tmp'" EXIT
     just talos _secrets > "$tmp/secrets.yaml"
 
-    # Convert our custom data: wrapper back to the raw Talos secrets bundle format
-    yq '{
-      "version": "v1alpha1",
-      "trustdinfo": {"token": .data.machine.token},
-      "certs": {
-        "etcd":             {"crt": .data.cluster.etcd.ca.crt,      "key": .data.cluster.etcd.ca.key},
-        "k8s":              {"crt": .data.cluster.ca.crt,            "key": .data.cluster.ca.key},
-        "k8saggregator":    {"crt": .data.cluster.aggregatorCA.crt,  "key": .data.cluster.aggregatorCA.key},
-        "k8sserviceaccount":{"key": .data.serviceAccount.key},
-        "os":               {"crt": .data.machine.ca.crt,            "key": .data.machine.ca.key}
-      },
-      "cluster": {"id": .data.cluster.id, "secret": .data.cluster.secret},
-      "secrets": {
-        "bootstraptoken":             .data.cluster.token,
-        "secretboxencryptionsecret":  .data.secrets.secretboxencryptionsecret
-      }
-    }' "$tmp/secrets.yaml" > "$tmp/talos-bundle.yaml"
+    minijinja-cli --format=yaml --trim-blocks --lstrip-blocks --autoescape=none --strict \
+        "{{talos_dir}}/templates/talos-bundle.yaml.j2" "$tmp/secrets.yaml" \
+        -o "$tmp/talos-bundle.yaml"
 
     talosctl gen config \
         --with-secrets "$tmp/talos-bundle.yaml" \
         --output-types talosconfig --output "{{talosconfig}}" --force \
-        main "https://$(yq '.data.network.vip' "$tmp/secrets.yaml"):6443"
+        main "https://$(minijinja-cli --no-newline --strict "{{talos_dir}}/templates/node-ip.txt.j2" "$tmp/secrets.yaml" -D node=vip):6443"
     talosctl --talosconfig="{{talosconfig}}" config endpoint \
-        "$(yq '.data.nodes.nas.ip' "$tmp/secrets.yaml")" \
-        "$(yq '.data.nodes["k8s-01"].ip' "$tmp/secrets.yaml")" \
-        "$(yq '.data.nodes["k8s-02"].ip' "$tmp/secrets.yaml")"
+        "$(minijinja-cli --no-newline --strict "{{talos_dir}}/templates/node-ip.txt.j2" "$tmp/secrets.yaml" -D node=nas)" \
+        "$(minijinja-cli --no-newline --strict "{{talos_dir}}/templates/node-ip.txt.j2" "$tmp/secrets.yaml" -D node=k8s-01)" \
+        "$(minijinja-cli --no-newline --strict "{{talos_dir}}/templates/node-ip.txt.j2" "$tmp/secrets.yaml" -D node=k8s-02)"
     # config node sets the default target for talosctl commands (no -n flag needed).
     # k8s-01 is the default; override per-command with: talosctl -n <ip> ...
     talosctl --talosconfig="{{talosconfig}}" config node \
-        "$(yq '.data.nodes["k8s-01"].ip' "$tmp/secrets.yaml")"
+        "$(minijinja-cli --no-newline --strict "{{talos_dir}}/templates/node-ip.txt.j2" "$tmp/secrets.yaml" -D node=k8s-01)"
     echo "talosconfig → secrets/talosconfig"
 
 # Bootstrap etcd — run ONCE on nas after all nodes are up
@@ -182,6 +149,31 @@ health:
     talosctl health --talosconfig="{{talosconfig}}" \
         --control-plane-nodes "$(just talos _ip nas),$(just talos _ip k8s-01),$(just talos _ip k8s-02)"
 
+# Check all nodes are reachable via talosctl and report version + stage
+check-nodes:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    [[ -f "{{talosconfig}}" ]] || { echo "ERROR: run: just talos gen-talosconfig"; exit 1; }
+    rc=0
+    for node in nas k8s-01 k8s-02; do
+        ip=$(just talos _ip "$node")
+        if out=$(talosctl --talosconfig="{{talosconfig}}" --nodes "$ip" --endpoints "$ip" version --short 2>&1); then
+            stage=$(talosctl --talosconfig="{{talosconfig}}" get machinestatus \
+                --nodes "$ip" --endpoints "$ip" 2>&1 | awk 'NR==2 {print $6}')
+            echo "OK   $node ($ip) — version: $out — stage: ${stage:-unknown}"
+        else
+            echo "FAIL $node ($ip) — $out" >&2
+            rc=1
+        fi
+    done
+    exit $rc
+
+# Check etcd health on controlplane nodes
+check-etcd:
+    [[ -f "{{talosconfig}}" ]] || { echo "ERROR: run: just talos gen-talosconfig"; exit 1; }
+    talosctl --talosconfig="{{talosconfig}}" -n "$(just talos _ip nas)" etcd members
+    talosctl --talosconfig="{{talosconfig}}" -n "$(just talos _ip nas)" etcd status
+
 # Retrieve kubeconfig from the cluster
 get-kubeconfig:
     #!/usr/bin/env bash
@@ -200,7 +192,7 @@ upgrade-node node:
     #!/usr/bin/env bash
     set -euo pipefail
     ip=$(just talos _ip "{{node}}")
-    image="factory.talos.dev/installer/$(yq '.schematicId' "{{values}}"):$(yq '.talosVersion' "{{values}}")"
+    image="$(minijinja-cli --no-newline --strict "{{talos_dir}}/templates/installer-image.txt.j2" "{{values}}")"
     talosctl version --talosconfig="{{talosconfig}}"
     gum confirm "Upgrade {{node}} ($ip) to $image ?"
     talosctl upgrade --talosconfig="{{talosconfig}}" \
@@ -219,7 +211,7 @@ upgrade-node node:
 upgrade-k8s:
     talosctl upgrade-k8s --talosconfig="{{talosconfig}}" \
         --nodes "$(just talos _ip k8s-01)" \
-        --to "$(yq '.kubernetesVersion' "{{values}}")"
+        --to "$(minijinja-cli --no-newline --strict "{{talos_dir}}/templates/kubernetes-version.txt.j2" "{{values}}")"
 
 # Reset a node (destructive). Usage: just talos reset-node nas
 reset-node node:

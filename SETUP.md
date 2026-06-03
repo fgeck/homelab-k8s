@@ -146,7 +146,7 @@ Generates `secrets/talosconfig` — the client config that lets `talosctl` commu
 
 ## Step 8 — Bootstrap etcd
 
-Wait until all three nodes have finished rebooting and are in the **"booting"** stage (visible in `check-nodes` output or on the Proxmox console).
+Wait until all three nodes have finished rebooting and are in the **"booting"** stage (visible in `just talos check-nodes` output or on the Proxmox console).
 
 ```bash
 just talos bootstrap
@@ -159,8 +159,8 @@ This bootstraps the etcd cluster on `nas`. **Run this exactly once.** Running it
 ## Step 9 — Validate nodes
 
 ```bash
-just bootstrap check-nodes   # talosctl reachability + machine stage
-just bootstrap check-etcd    # etcd member list + status
+just talos check-nodes       # talosctl reachability + machine stage
+just talos check-etcd        # etcd member list + status
 ```
 
 All three nodes should show stage `running` and etcd should show 3 healthy members.
@@ -186,7 +186,7 @@ Nodes will show `NotReady` at this point — Cilium is not installed yet, so the
 ## Step 11 — Bootstrap the cluster
 
 ```bash
-just bootstrap all
+just bootstrap kubernetes
 ```
 
 This runs in order:

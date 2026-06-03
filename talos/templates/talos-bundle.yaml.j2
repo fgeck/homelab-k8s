@@ -1,0 +1,24 @@
+version: v1alpha1
+trustdinfo:
+  token: {{ data.machine.token | tojson }}
+certs:
+  etcd:
+    crt: {{ data.cluster.etcd.ca.crt | tojson }}
+    key: {{ data.cluster.etcd.ca.key | tojson }}
+  k8s:
+    crt: {{ data.cluster.ca.crt | tojson }}
+    key: {{ data.cluster.ca.key | tojson }}
+  k8saggregator:
+    crt: {{ data.cluster.aggregatorCA.crt | tojson }}
+    key: {{ data.cluster.aggregatorCA.key | tojson }}
+  k8sserviceaccount:
+    key: {{ data.serviceAccount.key | tojson }}
+  os:
+    crt: {{ data.machine.ca.crt | tojson }}
+    key: {{ data.machine.ca.key | tojson }}
+cluster:
+  id: {{ data.cluster.id | tojson }}
+  secret: {{ data.cluster.secret | tojson }}
+secrets:
+  bootstraptoken: {{ data.cluster.token | tojson }}
+  secretboxencryptionsecret: {{ data.secrets.secretboxencryptionsecret | tojson }}

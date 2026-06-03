@@ -72,15 +72,15 @@ setup:
     Step 7  Bootstrap etcd (ONCE):
               just talos bootstrap
 
-    Step 8  Validate nodes are up:
-              just bootstrap check-nodes
-              just bootstrap check-etcd
+    Step 8  Validate Talos nodes are up:
+              just talos check-nodes
+              just talos check-etcd
 
     Step 9  Get kubeconfig:
               just talos get-kubeconfig
 
-    Step 10 Bootstrap the cluster (Cilium + Flux):
-              just bootstrap all
+    Step 10 Bootstrap Kubernetes components (Cilium + Flux):
+              just bootstrap kubernetes
 
     Step 11 Validate Kubernetes:
               just bootstrap check-k8s

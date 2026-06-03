@@ -33,8 +33,8 @@ clusters/     Flux-managed Kubernetes manifests
 
 ```bash
 just debug status          # machine stage + ready for all nodes
-just bootstrap check-nodes # talosctl reachability + version
-just bootstrap check-etcd  # etcd members + status
+just talos check-nodes     # talosctl reachability + version + stage
+just talos check-etcd      # etcd members + status
 just bootstrap check-k8s   # kubectl nodes + kube-system pods
 ```
 
@@ -72,7 +72,7 @@ just debug describe-node k8s-01   # kubectl describe node
 
 **Nodes stuck in `booting` / `ready=false`**
 This is normal before Cilium is installed — no CNI means no node Ready signal.
-Run `just bootstrap all` to install Cilium and Flux.
+Run `just bootstrap kubernetes` to install Cilium and Flux.
 
 **kubeconfig context renamed to `admin@main-1`, `admin@main-2`, etc.**
 This happens when `talosctl kubeconfig` finds an existing file and avoids overwriting it.

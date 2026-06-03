@@ -1,0 +1,5 @@
+{% if node == "vip" -%}
+{{ data.network.vip }}
+{%- else -%}
+{{ data.nodes[node].ip }}
+{%- endif %}
