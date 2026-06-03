@@ -15,7 +15,7 @@ engines:
 localpv-provisioner:
   localpv:
     enabled: true
-    basePath: /var/openebs/local
+    basePath: /var/mnt/openebs-local
   hostpathClass:
     enabled: true
     name: openebs-hostpath

@@ -104,8 +104,15 @@ render-config node:
     minijinja-cli --trim-blocks --lstrip-blocks --autoescape=none \
         "{{talos_dir}}/machineconfig.yaml.j2" "$tmp/secrets.yaml" "{{values}}" -o "$tmp/base.yaml"
     minijinja-cli --trim-blocks --lstrip-blocks --autoescape=none \
-        "{{talos_dir}}/patches/{{node}}.yaml.j2" "$tmp/secrets.yaml" "{{values}}" -o "$tmp/patch.yaml"
-    talosctl machineconfig patch "$tmp/base.yaml" --patch "@$tmp/patch.yaml"
+        "{{talos_dir}}/patches/machine/{{node}}.yaml.j2" "$tmp/secrets.yaml" "{{values}}" -o "$tmp/patch.yaml"
+    talosctl machineconfig patch "$tmp/base.yaml" --patch "@$tmp/patch.yaml" > "$tmp/rendered.yaml"
+    config_doc_tpl="{{talos_dir}}/patches/config/{{node}}.yaml.j2"
+    if [ -f "$config_doc_tpl" ]; then
+        minijinja-cli --trim-blocks --lstrip-blocks --autoescape=none \
+            "$config_doc_tpl" "$tmp/secrets.yaml" "{{values}}" -o "$tmp/config-doc.yaml"
+        cat "$tmp/config-doc.yaml" >> "$tmp/rendered.yaml"
+    fi
+    cat "$tmp/rendered.yaml"
 
 # ─── APPLY ───────────────────────────────────────────────────────────────────
 

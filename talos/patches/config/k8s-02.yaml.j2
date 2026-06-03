@@ -1,0 +1,9 @@
+---
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: openebs-local
+provisioning:
+  diskSelector:
+    match: disk.dev_path == '{{ nodes["k8s-02"].dataDisk }}'
+  minSize: 2GB
+  grow: true

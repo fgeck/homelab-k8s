@@ -16,7 +16,12 @@ All three VMs run Talos as controlplane nodes. `nas` only provides etcd quorum â
 
 Talos itself does not need a large root disk in this layout. `16 GB` is a practical minimum for Talos, kubelet, container images, and upgrades when persistent app data lives on `/dev/sdb`.
 
-This repo now wires worker storage through Talos `UserVolumeConfig`. Each worker provisions an `openebs-local` volume on `/dev/sdb`, which Talos mounts at `/var/mnt/openebs-local`. OpenEBS hostpath uses that mount directly.
+Actual storage flow in this repo:
+
+1. Talos installs to `/dev/sda`.
+2. Each worker provisions a Talos `UserVolumeConfig` named `openebs-local` on `/dev/sdb`.
+3. Talos mounts that volume at `/var/mnt/openebs-local`.
+4. OpenEBS hostpath stores PVC data under that mount.
 
 ### Required tools
 

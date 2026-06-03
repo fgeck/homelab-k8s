@@ -62,14 +62,6 @@ machine:
     nodeIP:
       validSubnets:
         - {{ data.network.nodeSubnet }}
-    extraMounts:
-      - destination: /var/openebs/local
-        type: bind
-        source: /var/openebs/local
-        options:
-          - bind
-          - rshared
-          - rw
   time:
     servers:
 {% for server in ntp.servers %}

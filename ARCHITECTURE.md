@@ -58,7 +58,8 @@
 
 - Dedicated second worker disk for Kubernetes workload data
 - Talos system disk separated from OpenEBS PVC data
-- Talos provisions `openebs-local` on `/dev/sdb` and mounts it at `/var/mnt/openebs-local`
+- Talos provisions `openebs-local` on `/dev/sdb`
+- OpenEBS stores PVC data under `/var/mnt/openebs-local`
 - No Longhorn
 - No Ceph/Rook
 - No distributed storage layer

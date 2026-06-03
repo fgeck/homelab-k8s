@@ -18,11 +18,13 @@ nodes:
   k8s-01:
     hostname: k8s-01
     installDisk: /dev/sda
+    dataDisk: /dev/sdb
     controlplane: true
     allowScheduling: true
   k8s-02:
     hostname: k8s-02
     installDisk: /dev/sda
+    dataDisk: /dev/sdb
     controlplane: true
     allowScheduling: true
 

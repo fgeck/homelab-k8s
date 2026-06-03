@@ -22,7 +22,7 @@ just --list  # all available commands
 ## Structure
 
 ```
-talos/        machine config templates + per-node patches
+talos/        machine config templates + patches/machine + patches/config
 bootstrap/    one-time cluster bootstrap (Cilium, Flux, secrets)
 clusters/     Flux-managed Kubernetes manifests
 ```
