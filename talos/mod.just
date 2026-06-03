@@ -182,9 +182,23 @@ get-kubeconfig:
 
 # Upgrade Talos on a single node. Usage: just talos upgrade-node nas
 upgrade-node node:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ip=$(just talos _ip "{{node}}")
+    image="factory.talos.dev/installer/$(yq '.schematicId' "{{values}}"):$(yq '.talosVersion' "{{values}}")"
+    talosctl version --talosconfig="{{talosconfig}}"
+    gum confirm "Upgrade {{node}} ($ip) to $image ?"
     talosctl upgrade --talosconfig="{{talosconfig}}" \
-        --nodes "$(just talos _ip {{node}})" \
-        --image "factory.talos.dev/installer/$(yq '.schematicId' "{{values}}"):$(yq '.talosVersion' "{{values}}")"
+        --nodes "$ip" --image "$image" --wait=false || true
+    echo "Rebooting {{node}}..."
+    boot_id=$(talosctl read /proc/sys/kernel/random/boot_id --talosconfig="{{talosconfig}}" --nodes "$ip" 2>/dev/null || true)
+    talosctl reboot --talosconfig="{{talosconfig}}" --nodes "$ip" --wait=false
+    echo "Waiting for {{node}} to reboot (boot_id: $boot_id)..."
+    until [[ "$(talosctl read /proc/sys/kernel/random/boot_id --talosconfig="{{talosconfig}}" --nodes "$ip" 2>/dev/null)" != "$boot_id" ]]; do
+        sleep 3
+    done
+    echo "{{node}} is back up."
+    talosctl version --talosconfig="{{talosconfig}}" --nodes "$ip"
 
 # Upgrade Kubernetes version across the cluster
 upgrade-k8s:
