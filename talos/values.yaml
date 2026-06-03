@@ -35,5 +35,5 @@ ntp:
 # Schematic ID is resolved at build time via image factory.
 # Run: just talos-schematic-id  →  paste result here before generating configs.
 schematicId: "5660ef302b89b35b9add72b21aef74a71e562851ce170568d82cc21aa2c02daf"
-talosVersion: v1.13.2
+talosVersion: v1.13.3
 kubernetesVersion: v1.36.1
