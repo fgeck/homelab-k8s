@@ -159,8 +159,16 @@ gen-talosconfig:
 
 # Bootstrap etcd — run ONCE on nas after all nodes are up
 bootstrap:
+    #!/usr/bin/env bash
+    set -euo pipefail
     talosctl bootstrap --talosconfig="{{talosconfig}}" \
         --nodes "$(just talos _ip nas)" --endpoints "$(just talos _ip nas)"
+    echo "Waiting for etcd to form quorum..."
+    until talosctl etcd members --talosconfig="{{talosconfig}}" --nodes "$(just talos _ip nas)" &>/dev/null 2>&1; do
+        sleep 3
+    done
+    talosctl etcd members --talosconfig="{{talosconfig}}" --nodes "$(just talos _ip nas)"
+    echo "Bootstrap complete — etcd quorum established."
 
 # Wait for cluster health
 health:
