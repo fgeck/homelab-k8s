@@ -1,0 +1,42 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/v1.34.0/persistentvolume-v1.json
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  annotations:
+    pv.kubernetes.io/provisioned-by: nfs.csi.k8s.io
+  name: backup-nfs
+spec:
+  accessModes:
+    - ReadWriteMany
+  capacity:
+    storage: 30Ti
+  csi:
+    driver: nfs.csi.k8s.io
+    volumeAttributes:
+      server: 192.168.178.50
+      share: /mnt/tank/backup
+    volumeHandle: 192.168.178.50##/mnt/tank/backup
+  mountOptions:
+    - nfsvers=4
+    - nolock
+    - soft
+    - timeo=50
+    - retrans=2
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-csi
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/v1.34.0/persistentvolumeclaim-v1.json
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backup-nfs-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  reclaimPolicy: Retain
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: nfs-csi
+  volumeName: backup-nfs
