@@ -12,8 +12,8 @@ repositories:
     url: https://helm.cilium.io
   - name: coredns
     url: https://coredns.github.io/helm
-  - name: openebs
-    url: https://openebs.github.io/openebs
+  - name: fluxcd-community
+    url: https://fluxcd-community.github.io/helm-charts
 
 releases:
   - name: cilium
@@ -30,12 +30,10 @@ releases:
       - ../clusters/building-blocks/base/apps/coredns/app/helm-values.yaml
     needs:
       - kube-system/cilium
-  - name: openebs
-    namespace: openebs
-    chart: openebs/openebs
-    version: "4.4.0"
-    values:
-      - ../clusters/building-blocks/base/apps/openebs/app/helm-values.yaml
+  - name: flux2
+    namespace: flux-system
+    chart: fluxcd-community/flux2
+    version: 2.18.3
     needs:
       - kube-system/cilium
       - kube-system/coredns

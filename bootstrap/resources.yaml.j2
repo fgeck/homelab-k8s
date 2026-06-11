@@ -6,3 +6,14 @@ metadata:
   namespace: flux-system
 data:
   age.agekey: {{ agekey | safe }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cluster-secrets-ssh-key
+  namespace: flux-system
+type: Opaque
+data:
+  identity: {{ secrets_identity | safe }}
+  identity.pub: {{ secrets_identity_pub | safe }}
+  known_hosts: {{ github_known_hosts | safe }}

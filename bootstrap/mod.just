@@ -4,6 +4,7 @@ set shell := ['bash', '-euo', 'pipefail', '-c']
 bootstrap_dir := source_directory()
 kubeconfig    := source_directory() + '/../secrets/kubeconfig'
 age_key       := env('HOME') + '/.age/key.txt'
+secrets_key   := env('HOME') + '/.ssh/fluxGithubReadKeyK8sSecrets'
 
 [private]
 default:
@@ -17,31 +18,39 @@ check-k8s:
 
 # ─── BOOTSTRAP ────────────────────────────────────────────────────────────────
 
-# Bootstrap Kubernetes components: namespaces → sops secret → Cilium + CoreDNS → Flux
-kubernetes: _namespaces _sops-secret _cilium-coredns flux
+# Bootstrap Kubernetes components: namespaces → bootstrap secrets → CRDs → Cilium + CoreDNS + Flux → Flux sources
+kubernetes: _namespaces _sops-secret _crds _cilium-coredns flux
 
 # Apply namespace manifests
 [private]
 _namespaces:
     KUBECONFIG={{kubeconfig}} kubectl apply --server-side -f "{{bootstrap_dir}}/namespaces.yaml"
 
-# Render and apply the sops-age secret (age key injected at runtime)
+# Render and apply bootstrap secrets
 [private]
 _sops-secret:
     minijinja-cli --autoescape=none "{{bootstrap_dir}}/resources.yaml.j2" \
         -D "agekey=$(grep -v '^#' '{{age_key}}' | base64 | tr -d '\n')" \
+        -D "secrets_identity=$(base64 -i '{{secrets_key}}' | tr -d '\n')" \
+        -D "secrets_identity_pub=$(base64 -i '{{secrets_key}}.pub' | tr -d '\n')" \
+        -D "github_known_hosts=$(ssh-keyscan github.com 2>/dev/null | base64 | tr -d '\n')" \
         | KUBECONFIG={{kubeconfig}} kubectl apply --server-side -f -
 
-# Install Cilium + CoreDNS via helmfile (CoreDNS depends on Cilium)
+# Install bootstrap CRDs required before Flux app reconciliation
+[private]
+_crds:
+    helmfile --kubeconfig "$(realpath "{{kubeconfig}}")" -f "{{bootstrap_dir}}/helmfile.d/00-crds.yaml" template \
+        | yq ea -e 'select(.kind == "CustomResourceDefinition")' \
+        | KUBECONFIG={{kubeconfig}} kubectl apply --server-side -f -
+
+# Install Cilium + CoreDNS + Flux via helmfile
 [private]
 _cilium-coredns:
     helmfile --kubeconfig "$(realpath "{{kubeconfig}}")" -f "{{bootstrap_dir}}/helmfile.yaml" sync
 
-# Bootstrap Flux from GitHub (run after Cilium is up)
+# Register Flux sources and root Kustomizations
 flux:
-    KUBECONFIG={{kubeconfig}} flux bootstrap git \
-        --url=ssh://git@github.com/fgeck/homelab-k8s.git \
-        --branch=main \
-        --path=clusters/homelab-k8s \
-        --private-key-file="$HOME/.ssh/fluxGithubReadKeyK8s" \
-        --components-extra=image-reflector-controller,image-automation-controller
+    KUBECONFIG={{kubeconfig}} kubectl apply --server-side -f "{{bootstrap_dir}}/flux-gitrepository.yaml"
+    KUBECONFIG={{kubeconfig}} kubectl apply --server-side -f "{{bootstrap_dir}}/flux-ks.yaml"
+    KUBECONFIG={{kubeconfig}} kubectl apply --server-side -f "{{bootstrap_dir}}/secrets-gitrepository.yaml"
+    KUBECONFIG={{kubeconfig}} kubectl apply --server-side -f "{{bootstrap_dir}}/secrets-ks.yaml"
