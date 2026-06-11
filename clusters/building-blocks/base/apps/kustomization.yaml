@@ -6,3 +6,6 @@ resources:
   - cilium/ks.yaml
   - coredns/ks.yaml
   - envoy-gateway/ks.yaml
+  - openebs/ks.yaml
+  - nfs-csi-driver/ks.yaml
+  - nfs-csi-test/ks.yaml
