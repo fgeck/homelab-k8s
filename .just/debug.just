@@ -3,8 +3,8 @@ set shell := ['bash', '-euo', 'pipefail', '-c']
 
 talosconfig      := source_directory() + '/../secrets/talosconfig'
 kubeconfig       := source_directory() + '/../secrets/kubeconfig'
-nfs_csi_test_dir := source_directory() + '/../clusters/building-blocks/base/apps/nfs-csi-test/app'
-test_storage_dir := source_directory() + '/test-storage'
+nfs_csi_test_dir := source_directory() + '/test-storage/nfs'
+test_storage_dir := source_directory() + '/test-storage/openebs'
 
 [private]
 default:
