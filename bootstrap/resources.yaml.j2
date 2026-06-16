@@ -10,6 +10,17 @@ data:
 apiVersion: v1
 kind: Secret
 metadata:
+  name: flux-system
+  namespace: flux-system
+type: Opaque
+data:
+  identity: {{ flux_identity | safe }}
+  identity.pub: {{ flux_identity_pub | safe }}
+  known_hosts: {{ github_known_hosts | safe }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
   name: cluster-secrets-ssh-key
   namespace: flux-system
 type: Opaque

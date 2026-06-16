@@ -1,0 +1,36 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nfs-media-rw-check
+  namespace: test
+spec:
+  restartPolicy: Always
+  securityContext:
+    runAsUser: 3000
+    runAsGroup: 3004
+    fsGroup: 3004
+  containers:
+    - name: shell
+      image: busybox:1.36.1
+      command:
+        - /bin/sh
+        - -c
+        - |
+          set -eu
+          testfile="/data/.codex-nfs-rw-check"
+          echo "listing /data before write"
+          ls -la /data
+          echo "nfs rw probe $(date -u +%Y-%m-%dT%H:%M:%SZ)" > "${testfile}"
+          echo "reading ${testfile}"
+          cat "${testfile}"
+          echo "listing /data after write"
+          ls -la /data
+          sleep 3600
+      volumeMounts:
+        - name: media
+          mountPath: /data
+  volumes:
+    - name: media
+      persistentVolumeClaim:
+        claimName: pvc-nfs-media

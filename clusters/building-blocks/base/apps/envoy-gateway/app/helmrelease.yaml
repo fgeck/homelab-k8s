@@ -22,13 +22,13 @@ spec:
   chartRef:
     kind: OCIRepository
     name: envoy-gateway
-    namespace: flux-system
+    namespace: envoy-gateway-system
   install:
-    crds: Create
+    crds: Skip
     remediation:
       retries: 3
   upgrade:
-    crds: CreateReplace
+    crds: Skip
     remediation:
       retries: 3
   values:

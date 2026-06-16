@@ -3,6 +3,7 @@ set shell := ['bash', '-euo', 'pipefail', '-c']
 
 talosconfig      := source_directory() + '/../secrets/talosconfig'
 kubeconfig       := source_directory() + '/../secrets/kubeconfig'
+nfs_csi_test_dir := source_directory() + '/../clusters/building-blocks/base/apps/nfs-csi-test/app'
 test_storage_dir := source_directory() + '/test-storage'
 
 [private]
@@ -139,3 +140,31 @@ test-storage:
     echo "Pod output:"
     KUBECONFIG={{kubeconfig}} kubectl logs -n "$ns" test-pod
     echo "PV/PVC provisioning: OK"
+
+# Test NFS media share rw: creates test ns + static PV/PVC + pod, streams probe output, then cleans up
+test-nfs:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    trap '
+        echo "Cleaning up..."
+        KUBECONFIG={{kubeconfig}} kubectl delete namespace test --ignore-not-found --wait=false
+        KUBECONFIG={{kubeconfig}} kubectl delete pv pv-nfs-media --ignore-not-found --wait=false
+    ' EXIT
+
+    KUBECONFIG={{kubeconfig}} kubectl create namespace test --dry-run=client -o yaml \
+        | KUBECONFIG={{kubeconfig}} kubectl apply -f -
+    KUBECONFIG={{kubeconfig}} kubectl apply -f "{{nfs_csi_test_dir}}/persistentvolume.yaml"
+    KUBECONFIG={{kubeconfig}} kubectl apply -n test -f "{{nfs_csi_test_dir}}/persistentvolumeclaim.yaml"
+    KUBECONFIG={{kubeconfig}} kubectl apply -n test -f "{{nfs_csi_test_dir}}/pod.yaml"
+
+    echo "Waiting for PVC to bind..."
+    KUBECONFIG={{kubeconfig}} kubectl wait -n test pvc/pvc-nfs-media \
+        --for=jsonpath='{.status.phase}'=Bound --timeout=60s
+
+    echo "Waiting for pod to be ready..."
+    KUBECONFIG={{kubeconfig}} kubectl wait -n test pod/nfs-media-rw-check \
+        --for=condition=Ready --timeout=120s
+
+    echo "Pod output:"
+    KUBECONFIG={{kubeconfig}} kubectl logs -n test nfs-media-rw-check
+    echo "NFS rw probe: OK"

@@ -9,4 +9,6 @@ spec:
   interval: 1m0s
   ref:
     branch: main
-  url: https://github.com/fgeck/homelab-k8s.git
+  secretRef:
+    name: flux-system
+  url: ssh://git@github.com/fgeck/homelab-k8s

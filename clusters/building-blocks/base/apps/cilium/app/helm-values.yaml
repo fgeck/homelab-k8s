@@ -1,7 +1,7 @@
 ---
 # Talos-specific Cilium values.
 # Key changes from k3s:
-#  - k8sServicePort: 7445  (KubePrism, not raw apiserver)
+#  - k8sServicePort: 7445  (Talos KubePrism local API endpoint)
 #  - loadBalancer.mode: hybrid  (DSR for TCP, SNAT for UDP — safe on home LAN)
 #  - ipv4NativeRoutingCIDR matches Talos podSubnet (10.42.0.0/16)
 #  - bpf.hostLegacyRouting: true  (required on Talos until kernel 5.18+)
@@ -9,7 +9,7 @@
 #  - envoy/l7Proxy disabled — not needed; Envoy Gateway will handle ingress instead
 
 k8sServiceHost: 127.0.0.1
-k8sServicePort: 7445        # KubePrism port (set in Talos machineconfig)
+k8sServicePort: 7445        # Talos KubePrism local API endpoint
 
 kubeProxyReplacement: true
 l2announcements:
